@@ -73,10 +73,10 @@ class HeatEqSolver:
         return 0
 
     def _noalpha(self, t):
-        return self.sol[t, 1]
+        return self.sol[t-1, 1]
 
     def _nobeta(self, t):
-        return self.sol[t, -2]
+        return self.sol[t-1, -2]
 
 
 def main():
@@ -91,11 +91,9 @@ def main():
         return i
     #def f(t, i):
     #    return x_points/2-abs(x_points/2-i)
-    def ff(x):
-        return 0
 
     solver = HeatEqSolver(a=a, x1=x1, x2 = x2, x_points=x_points,
-                          t_fin=t_fin, t_points=t_points, phi=phi, alpha=ff, beta=ff)
+                          t_fin=t_fin, t_points=t_points, phi=phi)
 
     solver.solve()
     solver.visualize()
