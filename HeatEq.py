@@ -9,7 +9,7 @@ class HeatEqSolver:
                  x1=0.0, x2=1.0, t_fin=1.0,
                  phi=None, alpha=None, beta=None,
                  x_points=10, t_points=10,
-                 method="expl", sigma = None):
+                 method="expl", sigma = 0.75):
 
         assert x1 < x2
         assert t_fin > 0
@@ -20,7 +20,7 @@ class HeatEqSolver:
             self.solve = self._expl
         elif method == "impl":
             self.solve = self._impl
-            assert sigma is not None and sigma <= 1 and sigma >= 0
+            assert sigma <= 1 and sigma >= 0
             self.sigma = sigma
         else:
             raise Exception("Wrong method")
@@ -70,13 +70,38 @@ class HeatEqSolver:
     def _impl(self):
         self.m = np.zeros(shape=(self.x_points, self.x_points))
         self.r = np.zeros(shape=(self.x_points,))
+        self.sol = np.zeros(shape=(self.t_points, self.x_points))
 
         self.utmp = (self.sigma * self.tau * self.a ** 2) / (self.h ** 2)
         self.dtmp = ((1 - self.sigma) * self.tau * self.a ** 2) / (self.h ** 2)
 
-        # TODO: fill the matrix
+        for i in xrange(self.x_points):
+            self.sol[0, i] = self.phi(i*self.h)
 
-        self.sol = np.linalg.solve(self.m, self.r)
+        for t in xrange(1, self.t_points):
+            self.sol[t, 0] = self.alpha(self.tau*t)
+            self.sol[t, -1] = self.beta(self.tau*t)
+
+        for t in xrange(1, self.t_points):
+            self.m.fill(0)
+            self.r.fill(0)
+            self.m[0, 0] = 1
+            self.r[0] = self.sol[t, 0]
+            self.m[-1, -1] = 1
+            self.r[-1] = self.sol[t, -1]
+            self.r[0] = self.sol[t, 0]
+            for i in xrange(1, self.x_points - 1):
+                self.m[i, i - 1] = -self.utmp
+                self.m[i, i] = 1 + 2*self.utmp
+                self.m[i, i + 1] = -self.utmp
+                self.r[i] = self.tau*self.f(t*self.tau, i*self.h) - self.dtmp*self.sol[t-1, i-1] + \
+                            (1 + 2*self.dtmp)*self.sol[t-1, i] - self.dtmp*self.sol[t-1, i+1]
+
+            #print self.m
+            #print self.r
+            #print '*'*60
+
+            self.sol[t] = np.linalg.solve(self.m, self.r)
 
 
 
@@ -122,12 +147,14 @@ def main():
     def phi(x):
         return x/10 + np.math.exp(-(x-(x2-x1)/2)**2)
 
+    def f(t, x):
+        return 0.001*np.math.exp(-(x-(x2 - x1) / 5) ** 2) if t < t_fin/2 else 0
+
     solver = HeatEqSolver(a=a, x1=x1, x2=x2, x_points=x_points,
-                          t_fin=t_fin, t_points=t_points, phi=phi)
+                          t_fin=t_fin, t_points=t_points, phi=phi, method="impl", f=f)
 
     solver.solve()
     solver.visualize(type="graph")
-
 
 
 if __name__ == "__main__":
