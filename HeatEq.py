@@ -8,12 +8,22 @@ class HeatEqSolver:
     def __init__(self, a=1.0, f=None,
                  x1=0.0, x2=1.0, t_fin=1.0,
                  phi=None, alpha=None, beta=None,
-                 x_points=10, t_points=10):
+                 x_points=10, t_points=10,
+                 method="expl", sigma = None):
 
         assert x1 < x2
         assert t_fin > 0
         assert x_points > 0
         assert t_points > 0
+
+        if method == "expl":
+            self.solve = self._expl
+        elif method == "impl":
+            self.solve = self._impl
+            assert sigma is not None and sigma <= 1 and sigma >= 0
+            self.sigma = sigma
+        else:
+            raise Exception("Wrong method")
 
         self.a = a
         if f is not None:
@@ -41,7 +51,7 @@ class HeatEqSolver:
         self.tau = t_fin / t_points
         print self.tau, self.a ** 2, self.h ** 2, self.tau * (self.a ** 2) / (self.h ** 2)
 
-    def solve(self):
+    def _expl(self):
         self.sol = np.zeros(shape=(self.t_points, self.x_points))
 
         for i in xrange(self.x_points):
@@ -57,6 +67,19 @@ class HeatEqSolver:
                     self.sol[t-1, i] + self.tau*(self.f(t-1, i*self.h) + (self.a**2)/(self.h**2) *
                     (self.sol[t-1, i-1] - 2*self.sol[t-1, i] + self.sol[t-1, i+1]))
 
+    def _impl(self):
+        self.m = np.zeros(shape=(self.x_points, self.x_points))
+        self.r = np.zeros(shape=(self.x_points,))
+
+        self.utmp = (self.sigma * self.tau * self.a ** 2) / (self.h ** 2)
+        self.dtmp = ((1 - self.sigma) * self.tau * self.a ** 2) / (self.h ** 2)
+
+        # TODO: fill the matrix
+
+        self.sol = np.linalg.solve(self.m, self.r)
+
+
+
     def visualize(self, type="graph"):
         def _graph_animate(t):
             line.set_ydata(self.sol[t])
@@ -68,17 +91,16 @@ class HeatEqSolver:
                               cmap="plasma")
             return cont
 
-        x = range(self.x_points)
+        x = [self.x1 + dx*self.h for dx in range(self.x_points)]
         if type == "graph":
             fig, ax = plt.subplots()
             line, = ax.plot(x, self.sol[0])
-            ani = animation.FuncAnimation(fig, _graph_animate, frames=self.t_points, interval=20)
+            ani = animation.FuncAnimation(fig, _graph_animate, frames=self.t_points, interval=20, repeat=False)
         elif type == "pcolor":
             fig = plt.figure(figsize=(80, 5), dpi=10)
-            ani = animation.FuncAnimation(fig, _pcolor_animate, frames=self.t_points, interval=20)
+            ani = animation.FuncAnimation(fig, _pcolor_animate, frames=self.t_points, interval=20, repeat=False)
         else:
             raise Exception("Unknown plot type")
-
 
         plt.show()
 
@@ -94,11 +116,11 @@ def main():
     x1 = 0.0
     x2 = 10
     x_points = 100
-    t_fin = 8000.0
-    t_points = 2000
+    t_fin = 800.0
+    t_points = 200
 
     def phi(x):
-        return np.math.exp(-(x-(x2-x1)/2)**2)
+        return x/10 + np.math.exp(-(x-(x2-x1)/2)**2)
 
     solver = HeatEqSolver(a=a, x1=x1, x2=x2, x_points=x_points,
                           t_fin=t_fin, t_points=t_points, phi=phi)
