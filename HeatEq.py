@@ -9,16 +9,38 @@ class HeatEqSolver:
                  x1=0.0, x2=1.0, t_fin=1.0,
                  phi=None, alpha=None, beta=None,
                  x_points=10, t_points=10,
-                 method="expl", sigma = 0.75):
+                 b_cond="first",
+                 method="explicit", sigma = 0.75):
+        """
+        This method solves one dimensional Heat Equation
+        du/dt = a^2*d2u/d2t + f
+        with boundary conditions:
+        u(0, x) = phi(x)
+        u(t, 0) = alpha(t)
+        u(t, M) = beta(t)
 
+        :param a:           Heat conductivity coefficient
+        :param f:           f fucntion in the equation
+        :param x1:          left bound
+        :param x2:          right bound
+        :param t_fin:       time bound
+        :param phi:         initial conditions
+        :param alpha:       left boundary condition
+        :param beta:        right boundary condition
+        :param x_points:    number of points in grid for x
+        :param t_points:    number of points in grid for t
+        :param b_cond:      type of boundary conditions ("first" or "second")
+        :param method:      explicit of implicit solver type ("explicit" of "implicit")
+        :param sigma:       sigma parameter in implicit solver
+        """
         assert x1 < x2
         assert t_fin > 0
         assert x_points > 0
         assert t_points > 0
 
-        if method == "expl":
+        if method == "explicit":
             self.solve = self._expl
-        elif method == "impl":
+        elif method == "implicit":
             self.solve = self._impl
             assert sigma <= 1 and sigma >= 0
             self.sigma = sigma
@@ -49,6 +71,12 @@ class HeatEqSolver:
         self.t_points = t_points
         self.h = (x2 - x1)/x_points
         self.tau = t_fin / t_points
+        if b_cond == "first":
+            pass
+        elif b_cond == "second":
+            pass
+        else:
+            raise Exception("Wrong boundary condition")
         print self.tau, self.a ** 2, self.h ** 2, self.tau * (self.a ** 2) / (self.h ** 2)
 
     def _expl(self):
@@ -96,10 +124,6 @@ class HeatEqSolver:
                 self.m[i, i + 1] = -self.utmp
                 self.r[i] = self.tau*self.f(t*self.tau, i*self.h) - self.dtmp*self.sol[t-1, i-1] + \
                             (1 + 2*self.dtmp)*self.sol[t-1, i] - self.dtmp*self.sol[t-1, i+1]
-
-            #print self.m
-            #print self.r
-            #print '*'*60
 
             self.sol[t] = np.linalg.solve(self.m, self.r)
 
@@ -158,7 +182,8 @@ def main():
 
     solver = HeatEqSolver(a=a, x1=x1, x2=x2, x_points=x_points,
                           t_fin=t_fin, t_points=t_points, phi=phi,
-                          method="impl", f=f, alpha=alpha, beta=beta)
+                          method="implicit", b_cond="first", f=f,
+                          alpha=alpha, beta=beta)
 
     solver.solve()
     solver.visualize(type="graph")
