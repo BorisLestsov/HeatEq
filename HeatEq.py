@@ -92,7 +92,7 @@ class HeatEqSolver:
         for t in xrange(1, self.t_points):
             for i in xrange(1, self.x_points-1):
                 self.sol[t, i] = \
-                    self.sol[t-1, i] + self.tau*(self.f(t-1, i*self.h) + (self.a**2)/(self.h**2) *
+                    self.sol[t-1, i] + self.tau*(self.f(t*self.tau, i*self.h) + (self.a**2)/(self.h**2) *
                     (self.sol[t-1, i-1] - 2*self.sol[t-1, i] + self.sol[t-1, i+1]))
 
     def _impl(self):
@@ -178,7 +178,7 @@ def main():
         return 1
 
     def beta(t):
-        return 0.8
+        return t/5000
 
     solver = HeatEqSolver(a=a, x1=x1, x2=x2, x_points=x_points,
                           t_fin=t_fin, t_points=t_points, phi=phi,
