@@ -130,6 +130,12 @@ class HeatEqSolver:
 
 
     def visualize(self, type="graph"):
+        """
+        Plot graph
+        :param type: "graph" or "pcolor" - type of visualization
+        :return: None
+        """
+
         def _graph_animate(t):
             line.set_ydata(self.sol[t])
             return line,
@@ -186,7 +192,7 @@ def main():
                           alpha=alpha, beta=beta)
 
     solver.solve()
-    solver.visualize(type="graph")
+    solver.visualize(type="pcolor")
 
 
 if __name__ == "__main__":
