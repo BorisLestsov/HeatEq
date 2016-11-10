@@ -99,16 +99,16 @@ class HeatEqSolver:
         for t in xrange(1, self.t_points):
             if self.ab_cond == "first":
                 self.sol[t, 0] = self.alpha(self.tau * t)
-            else:
-                self.sol[t, 0] = -self.alpha(self.tau * t) * self.h + self.sol[t, 1]
             if self.bb_cond == "first":
                 self.sol[t, -1] = self.beta(self.tau * t)
-            else:
-                self.sol[t, -1] = self.alpha(self.tau * t) * self.h + self.sol[t, -2]
             for i in xrange(1, self.x_points-1):
                 self.sol[t, i] = \
                     self.sol[t-1, i] + self.tau*(self.f(t*self.tau, i*self.h) + (self.a**2)/(self.h**2) *
                     (self.sol[t-1, i-1] - 2*self.sol[t-1, i] + self.sol[t-1, i+1]))
+            if self.ab_cond == "second":
+                self.sol[t, 0] = -self.alpha(self.tau * t) * self.h + self.sol[t, 1]
+            if self.bb_cond == "second":
+                self.sol[t, -1] = self.alpha(self.tau * t) * self.h + self.sol[t, -2]
 
 
     def _impl(self):
@@ -126,16 +126,20 @@ class HeatEqSolver:
             self.m.fill(0)
             self.r.fill(0)
             self.m[0, 0] = 1
-            self.r[0] = self.sol[t, 0]
             self.m[-1, -1] = 1
-            self.r[-1] = self.sol[t, -1]
-            self.r[0] = self.sol[t, 0]
-            if self.b_cond == "first":
-                self.sol[t, 0] = self.alpha(self.tau * t)
-                self.sol[t, -1] = self.beta(self.tau * t)
+            if self.ab_cond == "first":
+                self.r[0] = self.alpha(self.tau*t)
+            else:
+                self.m[0, 1] = -1
+                self.r[0] = -self.alpha(self.tau*t) * self.h
+            if self.bb_cond == "first":
+                self.r[-1] = self.beta(self.tau*t)
+            else:
+                self.m[-1, -2] = -1
+                self.r[-1] = self.beta(self.tau*t) * self.h
             for i in xrange(1, self.x_points - 1):
-                self.m[i, i - 1] = -self.utmp + self.alpha(self.tau * t) * self.h + self.sol[t, 1]
-                self.m[i, i] = 1 + 2*self.utmp + self.alpha(self.tau * t) * self.h + self.sol[t, -2]
+                self.m[i, i - 1] = -self.utmp
+                self.m[i, i] = 1 + 2*self.utmp
                 self.m[i, i + 1] = -self.utmp
                 self.r[i] = self.tau*self.f(t*self.tau, i*self.h) - self.dtmp*self.sol[t-1, i-1] + \
                             (1 + 2*self.dtmp)*self.sol[t-1, i] - self.dtmp*self.sol[t-1, i+1]
@@ -202,7 +206,7 @@ def main():
 
     solver = HeatEqSolver(a=a, x1=x1, x2=x2, x_points=x_points,
                           t_fin=t_fin, t_points=t_points, phi=None,
-                          method="explicit", ab_cond="second", f=None,
+                          method="implicit", ab_cond="second", f=None,
                           alpha=alpha, beta=beta, bb_cond="first")
 
     solver.solve()
