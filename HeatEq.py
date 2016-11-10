@@ -9,7 +9,8 @@ class HeatEqSolver:
                  x1=0.0, x2=1.0, t_fin=1.0,
                  phi=None, alpha=None, beta=None,
                  x_points=10, t_points=10,
-                 b_cond="first",
+                 ab_cond="first",
+                 bb_cond="first",
                  method="explicit", sigma = 0.75):
         """
         This method solves one dimensional Heat Equation
@@ -71,10 +72,16 @@ class HeatEqSolver:
         self.t_points = t_points
         self.h = (x2 - x1)/x_points
         self.tau = t_fin / t_points
-        if b_cond == "first":
-            pass
-        elif b_cond == "second":
-            pass
+        if ab_cond == "first":
+            self.ab_cond = "first"
+        elif ab_cond == "second":
+            self.ab_cond = "second"
+        else:
+            raise Exception("Wrong boundary condition")
+        if bb_cond == "first":
+            self.bb_cond = "first"
+        elif bb_cond == "second":
+            self.bb_cond = "second"
         else:
             raise Exception("Wrong boundary condition")
         print self.tau, self.a ** 2, self.h ** 2, self.tau * (self.a ** 2) / (self.h ** 2)
@@ -85,15 +92,24 @@ class HeatEqSolver:
         for i in xrange(self.x_points):
             self.sol[0, i] = self.phi(i*self.h)
 
-        for t in xrange(1, self.t_points):
-            self.sol[t, 0] = self.alpha(self.tau*t)
-            self.sol[t, -1] = self.beta(self.tau*t)
+        #for t in xrange(1, self.t_points):
+        #    self.sol[t, 0] = self.alpha(self.tau*t)
+        #   self.sol[t, -1] = self.beta(self.tau*t)
 
         for t in xrange(1, self.t_points):
+            if self.ab_cond == "first":
+                self.sol[t, 0] = self.alpha(self.tau * t)
+            else:
+                self.sol[t, 0] = -self.alpha(self.tau * t) * self.h + self.sol[t, 1]
+            if self.bb_cond == "first":
+                self.sol[t, -1] = self.beta(self.tau * t)
+            else:
+                self.sol[t, -1] = self.alpha(self.tau * t) * self.h + self.sol[t, -2]
             for i in xrange(1, self.x_points-1):
                 self.sol[t, i] = \
                     self.sol[t-1, i] + self.tau*(self.f(t*self.tau, i*self.h) + (self.a**2)/(self.h**2) *
                     (self.sol[t-1, i-1] - 2*self.sol[t-1, i] + self.sol[t-1, i+1]))
+
 
     def _impl(self):
         self.m = np.zeros(shape=(self.x_points, self.x_points))
@@ -107,10 +123,6 @@ class HeatEqSolver:
             self.sol[0, i] = self.phi(i*self.h)
 
         for t in xrange(1, self.t_points):
-            self.sol[t, 0] = self.alpha(self.tau*t)
-            self.sol[t, -1] = self.beta(self.tau*t)
-
-        for t in xrange(1, self.t_points):
             self.m.fill(0)
             self.r.fill(0)
             self.m[0, 0] = 1
@@ -118,12 +130,16 @@ class HeatEqSolver:
             self.m[-1, -1] = 1
             self.r[-1] = self.sol[t, -1]
             self.r[0] = self.sol[t, 0]
+            if self.b_cond == "first":
+                self.sol[t, 0] = self.alpha(self.tau * t)
+                self.sol[t, -1] = self.beta(self.tau * t)
             for i in xrange(1, self.x_points - 1):
-                self.m[i, i - 1] = -self.utmp
-                self.m[i, i] = 1 + 2*self.utmp
+                self.m[i, i - 1] = -self.utmp + self.alpha(self.tau * t) * self.h + self.sol[t, 1]
+                self.m[i, i] = 1 + 2*self.utmp + self.alpha(self.tau * t) * self.h + self.sol[t, -2]
                 self.m[i, i + 1] = -self.utmp
                 self.r[i] = self.tau*self.f(t*self.tau, i*self.h) - self.dtmp*self.sol[t-1, i-1] + \
                             (1 + 2*self.dtmp)*self.sol[t-1, i] - self.dtmp*self.sol[t-1, i+1]
+
 
             self.sol[t] = np.linalg.solve(self.m, self.r)
 
@@ -159,40 +175,38 @@ class HeatEqSolver:
 
         plt.show()
 
-        #cont = plt.pcolor((self.sol[t], self.sol[t]), cmap="rainbow")
-        #cont = plt.plot(range(self.x_points), self.sol[t])
-
     def _empty(self, t = None, x = None):
         return 0
 
 
 def main():
-    a = 0.02
+    a = 0.01
     x1 = 0.0
-    x2 = 10.0
+    x2 = 1.0
     x_points = 100
-    t_fin = 8000.0
-    t_points = 200
+    t_fin = 80.0
+    t_points = 1000
 
     def phi(x):
-        return x/10 + np.math.exp(-(x-(x2-x1)/2)**2)
+        return np.math.exp(-(x-(x2-x1)/2)**2)
+
 
     def f(t, x):
-        return 0.001*np.math.exp(-(x-(x2 - x1) / 5) ** 2) if t < t_fin/5 else 0
+        return 0.001*np.math.exp(-(x-(x2 - x1) / 5) ** 2) if t < t_fin/10 else -0.00002
 
     def alpha(t):
         return 1
 
     def beta(t):
-        return t/5000
+        return 0.06*np.math.sin(t)
 
     solver = HeatEqSolver(a=a, x1=x1, x2=x2, x_points=x_points,
-                          t_fin=t_fin, t_points=t_points, phi=phi,
-                          method="implicit", b_cond="first", f=f,
-                          alpha=alpha, beta=beta)
+                          t_fin=t_fin, t_points=t_points, phi=None,
+                          method="explicit", ab_cond="second", f=None,
+                          alpha=alpha, beta=beta, bb_cond="first")
 
     solver.solve()
-    solver.visualize(type="pcolor")
+    solver.visualize(type="graph")
 
 
 if __name__ == "__main__":
