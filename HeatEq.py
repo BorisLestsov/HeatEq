@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -85,6 +87,8 @@ class HeatEqSolver:
         else:
             raise Exception("Wrong boundary condition")
         print self.tau, self.a ** 2, self.h ** 2, self.tau * (self.a ** 2) / (self.h ** 2)
+        if method == "explicit" and self.tau * (self.a ** 2) / (self.h ** 2)>0.5:
+            raise Exception("Explicit scheme diverges")
 
     def _expl(self):
         self.sol = np.zeros(shape=(self.t_points, self.x_points))
@@ -176,7 +180,8 @@ class HeatEqSolver:
             ani = animation.FuncAnimation(fig, _pcolor_animate, frames=self.t_points, interval=10.0/self.t_points*100, repeat=False)
         else:
             raise Exception("Unknown plot type")
-
+        plt.xlim(self.x1, self.x2)
+        plt.ylim(np.min(self.sol), np.max(self.sol))
         plt.show()
 
     def _empty(self, t = None, x = None):
@@ -184,7 +189,7 @@ class HeatEqSolver:
 
 
 def main():
-    a = 0.01
+    a = 0.1
     x1 = 0.0
     x2 = 1.0
     x_points = 100
@@ -194,7 +199,6 @@ def main():
     def phi(x):
         return np.math.exp(-(x-(x2-x1)/2)**2)
 
-
     def f(t, x):
         return 0.001*np.math.exp(-(x-(x2 - x1) / 5) ** 2) if t < t_fin/10 else -0.00002
 
@@ -202,7 +206,7 @@ def main():
         return 1
 
     def beta(t):
-        return 0.06*np.math.sin(t)
+        return 6*np.math.sin(t)
 
     solver = HeatEqSolver(a=a, x1=x1, x2=x2, x_points=x_points,
                           t_fin=t_fin, t_points=t_points, phi=None,
